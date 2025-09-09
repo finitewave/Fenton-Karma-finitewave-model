@@ -33,8 +33,7 @@ __all__ = (
     "calc_dw",
 )
 
-from math import tanh
-
+import math
 
 def get_variables() -> dict[str, float]:
     """
@@ -130,7 +129,7 @@ def calc_Jso(u, u_c, tau_o, tau_r):
     return u*H1/tau_o + H2/tau_r
 
 
-def calc_Jsi(u, w, k, uc_si, tau_si):
+def calc_Jsi(u, w, k, uc_si, tau_si, tanh=math.tanh):
     """
     Computes the slow inward (calcium-like) current (J_si).
 
@@ -149,6 +148,8 @@ def calc_Jsi(u, w, k, uc_si, tau_si):
         Activation threshold for the slow inward current.
     tau_si : float
         Time constant for the slow inward current.
+    tanh : callable, optional
+        Hyperbolic tangent function (default is math.tanh).
 
     Returns
     -------
