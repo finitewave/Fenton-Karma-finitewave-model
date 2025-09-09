@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from implementation.model_0d import Model0D, Stimulation
+from implementation.fenton_karma_0d import FentonKarma0D, Stimulation
 
 
 def prepare_model(model_class, dt, curr_dur, curr_value, t_prebeats):
@@ -77,9 +77,17 @@ def test_model_attributes():
     Test that the model has the expected attributes.
     Checks for the presence of key variables and parameters in the 0D Model.
     """
-    model = Model0D(dt=0.01, stimulations=[])
+    model = FentonKarma0D(dt=0.01, stimulations=[])
 
-    assert 'u' in model.variables, "Model should have variable 'u'"
+    assert 'u' in model.variables, "Fenton-Karma should have variable 'u'"
+    assert 'v' in model.variables, "Fenton-Karma should have variable 'v'"
+    assert 'w' in model.variables, "Fenton-Karma should have variable 'w'"
+
+    expected_params = ['tau_r', 'tau_o', 'tau_d', 'tau_si', 'tau_v_m',
+                          'tau_v_p', 'tau_w_m', 'tau_w_p', 'k', 'u_c', 'uc_si']
+     
+    for param in expected_params:
+        assert param in model.parameters, f"Fenton-Karma should have parameter '{param}'"
 
 
 def test_model_run():
@@ -91,12 +99,12 @@ def test_model_run():
     t_prebeats = 1000.0 # interval between preconditioning stimuli (ms or model units).
     t_calc = 1000.0     # time after the last preconditioning beat to continue recording (ms or model units).
     t_max = 3*t_prebeats + t_calc
-    model = prepare_model(Model0D, dt=0.01, curr_dur=0.5, curr_value=5.0, t_prebeats=t_prebeats)
+    model = prepare_model(FentonKarma0D, dt=0.01, curr_dur=0.2, curr_value=1.0, t_prebeats=t_prebeats)
     model.run(t_max=t_max)
     u = np.array(model.history['u'])
 
-    assert np.max(u) == pytest.approx(20.0, abs=0.1)
-    assert np.min(u) == pytest.approx(-80.0, abs=0.01)
+    assert np.max(u) == pytest.approx(1.0, abs=0.1)
+    assert np.min(u) == pytest.approx(0.0, abs=0.01)
 
     apd = calculate_apd(u, model.dt, threshold=0.1)
-    assert 350 <= apd <= 400, f"Model is out of expected range {apd}"
+    assert 200 <= apd <= 300, f"Fenton-Karma is out of expected range {apd}"

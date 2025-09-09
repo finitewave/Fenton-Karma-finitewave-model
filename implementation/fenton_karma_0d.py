@@ -1,11 +1,11 @@
 """
-This module provides a simple interface to run the __template__ model in a 0D setting,
+This module provides a simple interface to run the Fenton-Karma model in a 0D setting,
 i.e., without spatial dimensions. It includes class for defining stimulation protocols
 and a class for the 0D model itself.
 
 """
 
-from model_template import ops
+from fenton_karma import ops
 
 
 class Stimulation:
@@ -37,9 +37,9 @@ class Stimulation:
         return self.amplitude if self.t_start <= t < self.t_start + self.duration else 0.0
 
 
-class Model0D:
+class FentonKarma0D:
     """
-    Model OD implementation.
+    Fenton-Karma model in 0D.
 
     Parameters
     ----------
@@ -81,7 +81,20 @@ class Model0D:
         i : int
             Current time step index.
         """
-        raise NotImplementedError("Model0D.step: implement your integration scheme (e.g., explicit Euler).")
+        self.variables["v"] += self.dt *ops.calc_dv(self.variables["v"], self.variables["u"], 
+                                          self.parameters["u_c"], self.parameters["tau_v_m"], self.parameters["tau_v_p"])
+        self.variables["w"] += self.dt *ops.calc_dw(self.variables["w"], self.variables["u"], 
+                                          self.parameters["u_c"], self.parameters["tau_w_m"], self.parameters["tau_w_p"])
+        
+        J_fi = ops.calc_Jfi(self.variables["u"], self.variables["v"], 
+                            self.parameters["u_c"], self.parameters["tau_d"])
+        J_so = ops.calc_Jso(self.variables["u"], self.parameters["u_c"],
+                            self.parameters["tau_o"], self.parameters["tau_r"])
+        J_si = ops.calc_Jsi(self.variables["u"], self.variables["w"],
+                            self.parameters["k"], self.parameters["uc_si"], self.parameters["tau_si"])
+
+        self.variables["u"] += self.dt * (ops.calc_rhs(J_fi, J_so, J_si) + 
+                                        sum(stim.stim(i * self.dt) for stim in self.stimulations))
 
     def run(self, t_max: float):
         """

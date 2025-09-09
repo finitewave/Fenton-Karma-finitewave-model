@@ -1,37 +1,19 @@
-## Finitewave model template (replace with the model name)
+## Fenton-Karma Finitewave model
 
-Add model description here and fill the sections below.
+The Fenton-Karma model is a simplified mathematical representation of cardiac action potentials, designed to reproduce the essential excitation–recovery dynamics of cardiac cells. Unlike detailed ionic models, it does not explicitly describe individual ion currents but instead uses a reduced set of variables and parameters to capture the key features of cardiac electrophysiology. This abstraction makes the model computationally efficient while retaining the ability to simulate wave propagation, spiral wave dynamics, and arrhythmia mechanisms in cardiac tissue.
 
 This model implementation can be used separately from the Finitewave, allowing for standalone simulations and testing of the model dynamics without the need for the entire framework.
 
-### Developer TODO Checklist (template repository only)
-- [ ] **Change model entry point in `pyproject.toml`**  
-  Update the entry point in the `pyproject.toml` file to reflect the new model's identifier. This ensures that the model can be correctly referenced and utilized within the project.
-  
-  In pyproject.toml, replace "model_template" with the actual model id. It must match the name of the directory where ops.py is located.
-  ```toml
-  [project.entry-points."finitewave.models"] 
-  model_template = "finitewave_models.model_template"
-  ```
-
-- [ ] **Implement `ops.py` model equations**  
-  Implement the model equations in the `ops.py` module. This module is the single source of truth for the model equations. Provide pure Python functions with scalar inputs/outputs (no NumPy arrays, no classes, no globals). Do NOT add numba/jax/torch here — the Finitewave runtime will wrap these functions for you. Stimulus and time integration are handled outside of the model. Here you only return time derivatives.
-
-- [ ] **Create 0D implementation for tests and examples**  
-  Design a zero-dimensional (0D) implementation of the model that can be used for testing and demonstration purposes. This should simplify the model to its core functionality, making it easier to validate and showcase.
-
-- [ ] **Provide at least one workable example for the model**  
-  Create a practical example that demonstrates how to use the model: model initialization, model stimulation and visualization of the model's AP.
-
-- [ ] **Implement model tests**  
-  Write unit tests to verify the correctness of the model's implementation: check model attributes and estimate AP parameters (min/max amplitude, duration) - this ensures that the model is excitable and generates the expected AP. 
-
 ### Reference
-Paper, Authors, DOI.
+Fenton, F. H., & Karma, A. (1998). Vortex dynamics in three-dimensional 
+continuous myocardium with fiber rotation: Filament instability and fibrillation.
+Chaos: An Interdisciplinary Journal of Nonlinear Science, 8(1), 20-47.
+
+DOI: https://doi.org/10.1063/1.166311
 
 ### How to use (quickstart)
 ```bash
-python -m example/model_example
+python -m example.fenton_karma_example
 ```
 
 ### How to test
@@ -42,16 +24,16 @@ python -m pytest -q
 ### Repository structure
 ```text
 .
-├── model_template/                  # equations package (ops.py)
+├── fenton_karma/                    # equations package (ops.py)
 │   ├── __init__.py
 │   └── ops.py                       # fill with the model equations (pure functions)
-├── implementation/                  # 0D model implementation
+├── implementation/                  # 0D Fenton-Karma implementation
 │   ├── __init__.py
-│   └── model_0d.py
+│   └── fenton_karma_0d.py
 ├── example/
-│   └── model_example.py             # minimal script to run a short trace
+│   └── fenton_karma_example.py      # minimal script to run a short trace
 ├── tests/
-│   └── test.py                      # smoke test; extend with reproducibility checks
+│   └── fenton_karma_test.py         # smoke test; extend with reproducibility checks
 ├── .gitignore
 ├── LICENSE                          # MIT
 ├── pyproject.toml                   # placeholders to replace
@@ -60,9 +42,22 @@ python -m pytest -q
 
 ### Variables
 Model state variables: description, units and ranges (optional)
-- `u` — ...
+- `u` — Transmembrane potential (mV)
+- `v` - Initial recovery variable (dimensionless)
+- `w` - Initial activation variable (dimensionless)
 
 ### Parameters
-Parameters and their defualt values
-- `par` - ...
+Parameters and their default values
+- `tau_r   = 130` - Recovery time constant (ms)
+- `tau_o   = 12.5` - Activation time constant (ms)
+- `tau_d   = 0.172` - Deactivation time constant (ms)
+- `tau_si  = 127` - Slow inactivation time constant (ms)
+- `tau_v_m = 18.2` - Membrane time constant (ms)
+- `tau_v_p = 10` - Potential time constant (ms)
+- `tau_w_m = 80` - Activation time constant for `w` (ms)
+- `tau_w_p = 1020` - Activation time constant for `w` (ms)
+- `k       = 10` - Scaling factor for recovery dynamics
+- `u_c     = 0.13` - Threshold for recovery variable (dimensionless)
+- `uc_si   = 0.85` - Slow inactivation threshold (dimensionless)
+
 
