@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
+[project]
+# Replace with the model's name and description.
+name = "finitewave-model-model_template"
+version = "0.1.0"
+description = "Readable cardiac model."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["cardiac", "electrophysiology", "finitewave", "model"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Medical Science Apps."
+]
+
+dependencies = []
+
+# Important: entry point, which is used by Finitewave
+# Replace "model_template" with the actual model's ID. 
+[project.entry-points."finitewave.models"]
+model_template = "model_template.ops"
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_template"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
