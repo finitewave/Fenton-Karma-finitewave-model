@@ -13,7 +13,7 @@ DOI: https://doi.org/10.1063/1.166311
 
 ### How to use (quickstart)
 ```bash
-python -m example.fenton_karma_example
+python -m examples.fenton_karma_example
 ```
 
 ### How to test
