@@ -81,20 +81,55 @@ class FentonKarma0D:
         i : int
             Current time step index.
         """
-        self.variables["v"] += self.dt *ops.calc_dv(self.variables["v"], self.variables["u"], 
-                                          self.parameters["u_c"], self.parameters["tau_v_m"], self.parameters["tau_v_p"])
-        self.variables["w"] += self.dt *ops.calc_dw(self.variables["w"], self.variables["u"], 
-                                          self.parameters["u_c"], self.parameters["tau_w_m"], self.parameters["tau_w_p"])
-        
-        J_fi = ops.calc_Jfi(self.variables["u"], self.variables["v"], 
-                            self.parameters["u_c"], self.parameters["tau_d"])
-        J_so = ops.calc_Jso(self.variables["u"], self.parameters["u_c"],
-                            self.parameters["tau_o"], self.parameters["tau_r"])
-        J_si = ops.calc_Jsi(self.variables["u"], self.variables["w"],
-                            self.parameters["k"], self.parameters["uc_si"], self.parameters["tau_si"])
+        u_old = self.variables["u"]
+        v_old = self.variables["v"]
+        w_old = self.variables["w"]
 
-        self.variables["u"] += self.dt * (ops.calc_rhs(J_fi, J_so, J_si) + 
-                                        sum(stim.stim(i * self.dt) for stim in self.stimulations))
+        dv = ops.calc_dv(
+            v_old,
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_v_m"],
+            self.parameters["tau_v_p"],
+        )
+
+        dw = ops.calc_dw(
+            w_old,
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_w_m"],
+            self.parameters["tau_w_p"],
+        )
+
+        J_fi = ops.calc_Jfi(
+            u_old,
+            v_old,
+            self.parameters["u_c"],
+            self.parameters["tau_d"],
+        )
+
+        J_so = ops.calc_Jso(
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_o"],
+            self.parameters["tau_r"],
+        )
+
+        J_si = ops.calc_Jsi(
+            u_old,
+            w_old,
+            self.parameters["k"],
+            self.parameters["uc_si"],
+            self.parameters["tau_si"],
+        )
+
+        stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
+
+        du = ops.calc_rhs(J_fi, J_so, J_si) + stim_current
+
+        self.variables["v"] = v_old + self.dt * dv
+        self.variables["w"] = w_old + self.dt * dw
+        self.variables["u"] = u_old + self.dt * du
 
     def run(self, t_max: float):
         """
