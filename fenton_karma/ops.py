@@ -25,6 +25,7 @@ DOI: https://doi.org/10.1063/1.166311
 __all__ = (
     "get_variables",
     "get_parameters",
+    "ionic_step",
     "calc_rhs",
     "calc_Jfi",
     "calc_Jso",
@@ -49,6 +50,61 @@ def get_parameters() -> dict[str, float]:
     return {"tau_r": 130.0, "tau_o": 12.5, "tau_d": 0.172, "tau_si": 127.0,
             "tau_v_m": 18.2, "tau_v_p": 10.0, "tau_w_m": 80.0, "tau_w_p": 1020.0,
             "k": 10.0, "u_c": 0.13, "uc_si": 0.85}
+
+
+def ionic_step(dt, u, v, w, tau_r, tau_o, tau_d, tau_si, tau_v_m, tau_v_p, tau_w_m,
+               tau_w_p, k, u_c, uc_si):
+    """
+    Computes the ionic currents and updates the state variables for one time step.
+
+    Parameters
+    ----------
+    u : float
+        Membrane potential.
+    v : float
+        Fast recovery gate.
+    w : float
+        Slow recovery gate.
+    tau_r : float
+        Time constant for suprathreshold repolarization.
+    tau_o : float
+        Time constant for subthreshold repolarization.
+    tau_d : float
+        Time constant for depolarization.
+    tau_si : float
+        Time constant for the slow inward current.
+    tau_v_m : float
+        Time constant for `v` below threshold.
+    tau_v_p : float
+        Time constant for `v` above threshold.
+    tau_w_m : float
+        Time constant for `w` below threshold.
+    tau_w_p : float
+        Time constant for `w` above threshold.
+    k : float
+        Steepness of the tanh activation curve for J_si.
+    u_c : float
+        Activation threshold for J_fi and J_so.
+    uc_si : float
+        Activation threshold for J_si.
+
+    Returns
+    -------
+    tuple[float, float, float]
+        Updated values of (u, v, w) after one time step.
+    """
+    J_fi = calc_Jfi(u, v, u_c, tau_d)
+    J_so = calc_Jso(u, u_c, tau_o, tau_r)
+    J_si = calc_Jsi(u, w, k, uc_si, tau_si)
+
+    dv = calc_dv(v, u, u_c, tau_v_m, tau_v_p)
+    dw = calc_dw(w, u, u_c, tau_w_m, tau_w_p)
+    rhs = calc_rhs(J_fi, J_so, J_si)
+    
+    v_new = v + dv * dt
+    w_new = w + dw * dt
+
+    return rhs, v_new, w_new
 
 
 def calc_rhs(J_fi, J_so, J_si) -> float:

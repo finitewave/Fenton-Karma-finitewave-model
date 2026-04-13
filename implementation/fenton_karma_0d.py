@@ -71,6 +71,8 @@ class FentonKarma0D:
         self.variables = ops.get_variables()
         self.parameters = ops.get_parameters()
         self.history = {s: [] for s in self.variables}
+        self.stim_history = []
+        self.times = []
 
     def step(self, i: int):
         """
@@ -81,20 +83,19 @@ class FentonKarma0D:
         i : int
             Current time step index.
         """
-        self.variables["v"] += self.dt *ops.calc_dv(self.variables["v"], self.variables["u"], 
-                                          self.parameters["u_c"], self.parameters["tau_v_m"], self.parameters["tau_v_p"])
-        self.variables["w"] += self.dt *ops.calc_dw(self.variables["w"], self.variables["u"], 
-                                          self.parameters["u_c"], self.parameters["tau_w_m"], self.parameters["tau_w_p"])
+        u_old = self.variables["u"]
+        v_old = self.variables["v"]
+        w_old = self.variables["w"]
         
-        J_fi = ops.calc_Jfi(self.variables["u"], self.variables["v"], 
-                            self.parameters["u_c"], self.parameters["tau_d"])
-        J_so = ops.calc_Jso(self.variables["u"], self.parameters["u_c"],
-                            self.parameters["tau_o"], self.parameters["tau_r"])
-        J_si = ops.calc_Jsi(self.variables["u"], self.variables["w"],
-                            self.parameters["k"], self.parameters["uc_si"], self.parameters["tau_si"])
+        rhs, v_new, w_new = ops.ionic_step(self.dt, u_old, v_old, w_old, **self.parameters)
 
-        self.variables["u"] += self.dt * (ops.calc_rhs(J_fi, J_so, J_si) + 
-                                        sum(stim.stim(i * self.dt) for stim in self.stimulations))
+        stim_curr = self.dt * sum(stim.stim(t=self.dt*i) for stim in self.stimulations)
+       
+        self.variables["u"] = u_old + self.dt * rhs + stim_curr
+        self.variables["v"] = v_new
+        self.variables["w"] = w_new
+
+        self.stim_history.append(stim_curr)
 
     def run(self, t_max: float):
         """
@@ -110,3 +111,4 @@ class FentonKarma0D:
             self.step(i)
             for s in self.variables:
                 self.history[s].append(self.variables[s])
+            self.times.append(i*self.dt)
