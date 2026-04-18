@@ -16,6 +16,8 @@ DOI: https://doi.org/10.1063/1.166311
 python -m examples.fenton_karma_example
 ```
 
+![Alt text](fenton_karma_ap.png)
+
 ### How to test
 ```bash
 python -m pytest -q
