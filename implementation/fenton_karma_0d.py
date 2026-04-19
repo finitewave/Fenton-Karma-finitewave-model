@@ -71,6 +71,8 @@ class FentonKarma0D:
         self.variables = ops.get_variables()
         self.parameters = ops.get_parameters()
         self.history = {s: [] for s in self.variables}
+        self.stim_history = []
+        self.times = []
 
     def step(self, i: int):
         """
@@ -145,3 +147,4 @@ class FentonKarma0D:
             self.step(i)
             for s in self.variables:
                 self.history[s].append(self.variables[s])
+            self.times.append(i*self.dt)
