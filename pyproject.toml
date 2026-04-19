@@ -3,8 +3,8 @@ requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "fenton-karma-finitewave-model"
-version = "0.1.0"
+name = "finitewave-model-fenton-karma"
+version = "0.5.0"
 description = "Fenton-Karma model."
 readme = "README.md"
 requires-python = ">=3.10"

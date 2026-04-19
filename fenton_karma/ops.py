@@ -27,6 +27,7 @@ __all__ = (
     "get_parameters",
     "ionic_step",
     "calc_rhs",
+    "calc_where",
     "calc_Jfi",
     "calc_Jso",
     "calc_Jsi",
@@ -34,7 +35,7 @@ __all__ = (
     "calc_dw",
 )
 
-import math
+from math import tanh
 
 def get_variables() -> dict[str, float]:
     """
@@ -128,6 +129,12 @@ def calc_rhs(J_fi, J_so, J_si) -> float:
     return -J_fi - J_so - J_si
 
 
+def calc_where(cond, x, y):
+    if cond:
+        return x
+    return y
+
+
 def calc_Jfi(u, v, u_c, tau_d):
     """
     Computes the fast inward current (J_fi) for the Fenton-Karma model.
@@ -151,7 +158,7 @@ def calc_Jfi(u, v, u_c, tau_d):
     float
         Value of the fast inward current at this point.
     """
-    H = 1.0 if (u - u_c) >= 0 else 0.0
+    H = calc_where(u - u_c >= 0, 1.0, 0.0)
     return -(v*H*(1-u)*(u - u_c))/tau_d
 
 
@@ -179,13 +186,13 @@ def calc_Jso(u, u_c, tau_o, tau_r):
     float
         Value of the outward repolarizing current.
     """
-    H1 = 1.0 if (u_c - u) >= 0 else 0.0
-    H2 = 1.0 if (u - u_c) >= 0 else 0.0
+    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
+    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
 
     return u*H1/tau_o + H2/tau_r
 
 
-def calc_Jsi(u, w, k, uc_si, tau_si, tanh=math.tanh):
+def calc_Jsi(u, w, k, uc_si, tau_si):
     """
     Computes the slow inward (calcium-like) current (J_si).
 
@@ -204,8 +211,6 @@ def calc_Jsi(u, w, k, uc_si, tau_si, tanh=math.tanh):
         Activation threshold for the slow inward current.
     tau_si : float
         Time constant for the slow inward current.
-    tanh : callable, optional
-        Hyperbolic tangent function (default is math.tanh).
 
     Returns
     -------
@@ -240,8 +245,8 @@ def calc_dv(v, u, u_c, tau_v_m, tau_v_p):
     float
         Updated value of `v`.
     """
-    H1 = 1.0 if (u_c - u) >= 0 else 0.0
-    H2 = 1.0 if (u - u_c) >= 0 else 0.0
+    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
+    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
     return H1*(1 - v)/tau_v_m - H2*v/tau_v_p
 
 
@@ -270,6 +275,6 @@ def calc_dw(w, u, u_c, tau_w_m, tau_w_p):
     float
         Updated value of `w`.
     """
-    H1 = 1.0 if (u_c - u) >= 0 else 0.0
-    H2 = 1.0 if (u - u_c) >= 0 else 0.0
+    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
+    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
     return H1*(1 - w)/tau_w_m - H2*w/tau_w_p

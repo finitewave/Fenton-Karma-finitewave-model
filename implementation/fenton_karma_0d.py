@@ -86,16 +86,52 @@ class FentonKarma0D:
         u_old = self.variables["u"]
         v_old = self.variables["v"]
         w_old = self.variables["w"]
-        
-        rhs, v_new, w_new = ops.ionic_step(self.dt, u_old, v_old, w_old, **self.parameters)
 
-        stim_curr = self.dt * sum(stim.stim(t=self.dt*i) for stim in self.stimulations)
-       
-        self.variables["u"] = u_old + self.dt * rhs + stim_curr
-        self.variables["v"] = v_new
-        self.variables["w"] = w_new
+        dv = ops.calc_dv(
+            v_old,
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_v_m"],
+            self.parameters["tau_v_p"],
+        )
 
-        self.stim_history.append(stim_curr)
+        dw = ops.calc_dw(
+            w_old,
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_w_m"],
+            self.parameters["tau_w_p"],
+        )
+
+        J_fi = ops.calc_Jfi(
+            u_old,
+            v_old,
+            self.parameters["u_c"],
+            self.parameters["tau_d"],
+        )
+
+        J_so = ops.calc_Jso(
+            u_old,
+            self.parameters["u_c"],
+            self.parameters["tau_o"],
+            self.parameters["tau_r"],
+        )
+
+        J_si = ops.calc_Jsi(
+            u_old,
+            w_old,
+            self.parameters["k"],
+            self.parameters["uc_si"],
+            self.parameters["tau_si"],
+        )
+
+        stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
+
+        du = ops.calc_rhs(J_fi, J_so, J_si) + stim_current
+
+        self.variables["v"] = v_old + self.dt * dv
+        self.variables["w"] = w_old + self.dt * dw
+        self.variables["u"] = u_old + self.dt * du
 
     def run(self, t_max: float):
         """
