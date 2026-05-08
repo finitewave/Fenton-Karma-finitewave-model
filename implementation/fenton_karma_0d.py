@@ -34,7 +34,9 @@ class Stimulation:
         self.amplitude = amplitude
 
     def stim(self, t: float) -> float:
-        return self.amplitude if self.t_start <= t < self.t_start + self.duration else 0.0
+        return (
+            self.amplitude if self.t_start <= t < self.t_start + self.duration else 0.0
+        )
 
 
 class FentonKarma0D:
@@ -57,7 +59,7 @@ class FentonKarma0D:
         Model parameters.
     history : dict[str, list[float]]
         Time history of state variables for post-processing.
-    
+
     Methods
     -------
     step(i: int)
@@ -65,6 +67,7 @@ class FentonKarma0D:
     run(t_max: float)
         Run the simulation up to time t_max.
     """
+
     def __init__(self, dt: float, stimulations: list[Stimulation]):
         self.dt = dt
         self.stimulations = stimulations
@@ -83,68 +86,46 @@ class FentonKarma0D:
         i : int
             Current time step index.
         """
-        u_old = self.variables["u"]
-        v_old = self.variables["v"]
-        w_old = self.variables["w"]
 
-        dv = ops.calc_dv(
-            v_old,
-            u_old,
-            self.parameters["u_c"],
-            self.parameters["tau_v_m"],
-            self.parameters["tau_v_p"],
-        )
-
-        dw = ops.calc_dw(
-            w_old,
-            u_old,
-            self.parameters["u_c"],
-            self.parameters["tau_w_m"],
-            self.parameters["tau_w_p"],
-        )
-
-        J_fi = ops.calc_Jfi(
-            u_old,
-            v_old,
-            self.parameters["u_c"],
-            self.parameters["tau_d"],
-        )
-
-        J_so = ops.calc_Jso(
-            u_old,
-            self.parameters["u_c"],
-            self.parameters["tau_o"],
-            self.parameters["tau_r"],
-        )
-
-        J_si = ops.calc_Jsi(
-            u_old,
-            w_old,
+        u_new, v_new, w_new = ops.ionic_step(
+            self.dt,
+            self.variables["u"],
+            self.variables["v"],
+            self.variables["w"],
             self.parameters["k"],
-            self.parameters["uc_si"],
+            self.parameters["g_fi"],
+            self.parameters["tau_r"],
             self.parameters["tau_si"],
+            self.parameters["tau_0"],
+            self.parameters["tau_v_p"],
+            self.parameters["tau_v1_m"],
+            self.parameters["tau_v2_m"],
+            self.parameters["tau_w_p"],
+            self.parameters["tau_w_m"],
+            self.parameters["u_c"],
+            self.parameters["u_v"],
+            self.parameters["uc_si"],
         )
 
         stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
+        u_new += stim_current
 
-        du = ops.calc_rhs(J_fi, J_so, J_si) + stim_current
-
-        self.variables["v"] = v_old + self.dt * dv
-        self.variables["w"] = w_old + self.dt * dw
-        self.variables["u"] = u_old + self.dt * du
+        self.variables["u"] = u_new
+        self.variables["v"] = v_new
+        self.variables["w"] = w_new
 
     def run(self, t_max: float):
         """
         Run the simulation up to time t_max.
-        
+
         Parameters
         ----------
         t_max : float
             Maximum simulation time.
         """
-        n_steps = int(round(t_max/self.dt))
+        n_steps = int(round(t_max / self.dt))
         for i in range(n_steps):
             self.step(i)
             for s in self.variables:
                 self.history[s].append(self.variables[s])
-            self.times.append(i*self.dt)
+            self.times.append(i * self.dt)
