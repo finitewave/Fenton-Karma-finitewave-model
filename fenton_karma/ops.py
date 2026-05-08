@@ -6,9 +6,9 @@ as well as functions to retrieve default parameters and initial
 values for the state variables.
 
 The Fenton-Karma model is a minimal three-variable model designed to reproduce
-essential features of human ventricular action potentials, including restitution, 
-conduction velocity dynamics, and spiral wave behavior. It captures the interaction 
-between fast depolarization, slow repolarization, and calcium-mediated effects 
+essential features of human ventricular action potentials, including restitution,
+conduction velocity dynamics, and spiral wave behavior. It captures the interaction
+between fast depolarization, slow repolarization, and calcium-mediated effects
 through simplified phenomenological equations.
 
 This implementation corresponds to the MLR-I parameter set described in the original paper
@@ -37,6 +37,7 @@ __all__ = (
 
 from math import tanh
 
+
 def get_variables() -> dict[str, float]:
     """
     Returns default initial values for state variables.
@@ -48,13 +49,42 @@ def get_parameters() -> dict[str, float]:
     """
     Returns default parameter values for the model.
     """
-    return {"tau_r": 130.0, "tau_o": 12.5, "tau_d": 0.172, "tau_si": 127.0,
-            "tau_v_m": 18.2, "tau_v_p": 10.0, "tau_w_m": 80.0, "tau_w_p": 1020.0,
-            "k": 10.0, "u_c": 0.13, "uc_si": 0.85}
+    return {
+        "k": 10.0,
+        "g_fi": 5.8,
+        "tau_r": 130.0,
+        "tau_si": 127.0,
+        "tau_0": 12.5,
+        "tau_v_p": 10.0,
+        "tau_v1_m": 18.2,
+        "tau_v2_m": 18.2,
+        "tau_w_p": 1020.0,
+        "tau_w_m": 80.0,
+        "u_c": 0.13,
+        "u_v": 0.0,
+        "uc_si": 0.85,
+    }
 
 
-def ionic_step(dt, u, v, w, tau_r, tau_o, tau_d, tau_si, tau_v_m, tau_v_p, tau_w_m,
-               tau_w_p, k, u_c, uc_si):
+def ionic_step(
+    dt,
+    u,
+    v,
+    w,
+    k,
+    g_fi,
+    tau_r,
+    tau_si,
+    tau_0,
+    tau_v_p,
+    tau_v1_m,
+    tau_v2_m,
+    tau_w_p,
+    tau_w_m,
+    u_c,
+    u_v,
+    uc_si,
+):
     """
     Computes the ionic currents and updates the state variables for one time step.
 
@@ -66,25 +96,29 @@ def ionic_step(dt, u, v, w, tau_r, tau_o, tau_d, tau_si, tau_v_m, tau_v_p, tau_w
         Fast recovery gate.
     w : float
         Slow recovery gate.
-    tau_r : float
-        Time constant for suprathreshold repolarization.
-    tau_o : float
-        Time constant for subthreshold repolarization.
-    tau_d : float
-        Time constant for depolarization.
-    tau_si : float
-        Time constant for the slow inward current.
-    tau_v_m : float
-        Time constant for `v` below threshold.
-    tau_v_p : float
-        Time constant for `v` above threshold.
-    tau_w_m : float
-        Time constant for `w` below threshold.
-    tau_w_p : float
-        Time constant for `w` above threshold.
     k : float
         Steepness of the tanh activation curve for J_si.
+    g_fi : float
+        Conductance parameter of the fast inward current.
+    tau_r : float
+        Time constant for suprathreshold repolarization.
+    tau_si : float
+        Time constant for the slow inward current.
+    tau_0 : float
+        Time constant for subthreshold repolarization.
+    tau_v_p : float
+        Time constant for `v` above threshold.
+    tau_v1_m : float
+        Time constant for `v` between u_v and u_c.
+    tau_v2_m : float
+        Time constant for `v` below u_v.
+    tau_w_p : float
+        Time constant for `w` above threshold.
+    tau_w_m : float
+        Time constant for `w` below threshold.
     u_c : float
+        Activation threshold for J_fi and J_so.
+    u_v : float
         Activation threshold for J_fi and J_so.
     uc_si : float
         Activation threshold for J_si.
@@ -94,18 +128,22 @@ def ionic_step(dt, u, v, w, tau_r, tau_o, tau_d, tau_si, tau_v_m, tau_v_p, tau_w
     tuple[float, float, float]
         Updated values of (u, v, w) after one time step.
     """
+    tau_d = 1 / g_fi
+    tau_v_m = calc_where(u < u_v, tau_v2_m, tau_v1_m)
+
     J_fi = calc_Jfi(u, v, u_c, tau_d)
-    J_so = calc_Jso(u, u_c, tau_o, tau_r)
+    J_so = calc_Jso(u, u_c, tau_0, tau_r)
     J_si = calc_Jsi(u, w, k, uc_si, tau_si)
 
     dv = calc_dv(v, u, u_c, tau_v_m, tau_v_p)
     dw = calc_dw(w, u, u_c, tau_w_m, tau_w_p)
-    rhs = calc_rhs(J_fi, J_so, J_si)
-    
+    du = calc_rhs(J_fi, J_so, J_si)
+
+    u_new = u + du * dt
     v_new = v + dv * dt
     w_new = w + dw * dt
 
-    return rhs, v_new, w_new
+    return u_new, v_new, w_new
 
 
 def calc_rhs(J_fi, J_so, J_si) -> float:
@@ -120,7 +158,7 @@ def calc_rhs(J_fi, J_so, J_si) -> float:
         Slow outward current.
     J_si : float
         Slow inward current.
-    
+
     Returns
     -------
     float
@@ -159,7 +197,7 @@ def calc_Jfi(u, v, u_c, tau_d):
         Value of the fast inward current at this point.
     """
     H = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return -(v*H*(1-u)*(u - u_c))/tau_d
+    return -(v * H * (1 - u) * (u - u_c)) / tau_d
 
 
 def calc_Jso(u, u_c, tau_o, tau_r):
@@ -189,7 +227,7 @@ def calc_Jso(u, u_c, tau_o, tau_r):
     H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
     H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
 
-    return u*H1/tau_o + H2/tau_r
+    return u * H1 / tau_o + H2 / tau_r
 
 
 def calc_Jsi(u, w, k, uc_si, tau_si):
@@ -217,7 +255,7 @@ def calc_Jsi(u, w, k, uc_si, tau_si):
     float
         Value of the slow inward current.
     """
-    return -w*(1 + tanh(k*(u - uc_si)))/(2*tau_si)
+    return -w * (1 + tanh(k * (u - uc_si))) / (2 * tau_si)
 
 
 def calc_dv(v, u, u_c, tau_v_m, tau_v_p):
@@ -247,7 +285,7 @@ def calc_dv(v, u, u_c, tau_v_m, tau_v_p):
     """
     H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
     H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return H1*(1 - v)/tau_v_m - H2*v/tau_v_p
+    return H1 * (1 - v) / tau_v_m - H2 * v / tau_v_p
 
 
 def calc_dw(w, u, u_c, tau_w_m, tau_w_p):
@@ -277,4 +315,4 @@ def calc_dw(w, u, u_c, tau_w_m, tau_w_p):
     """
     H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
     H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return H1*(1 - w)/tau_w_m - H2*w/tau_w_p
+    return H1 * (1 - w) / tau_w_m - H2 * w / tau_w_p
