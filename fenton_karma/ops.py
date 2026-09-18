@@ -140,13 +140,13 @@ def ionic_step(
 
     dv = calc_dv(v, u, u_c, tau_v_m, tau_v_p)
     dw = calc_dw(w, u, u_c, tau_w_m, tau_w_p)
-    du = calc_rhs(J_fi, J_so, J_si)
 
-    u_new = u + du * dt
     v_new = v + dv * dt
     w_new = w + dw * dt
 
-    return u_new, v_new, w_new
+    rhs = calc_rhs(J_fi, J_so, J_si)
+
+    return rhs, v_new, w_new
 
 
 def calc_rhs(J_fi, J_so, J_si) -> float:
