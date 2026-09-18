@@ -23,6 +23,7 @@ DOI: https://doi.org/10.1063/1.166311
 """
 
 __all__ = (
+    "get_diffusion_coefficient",
     "get_variables",
     "get_parameters",
     "ionic_step",
