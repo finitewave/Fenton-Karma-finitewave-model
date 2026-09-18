@@ -37,6 +37,8 @@ __all__ = (
 
 from math import tanh
 
+def get_diffusion_coefficient() -> float:
+    return {"D_model": 0.1}
 
 def get_variables() -> dict[str, float]:
     """
