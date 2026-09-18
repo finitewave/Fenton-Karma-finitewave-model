@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from implementation.fenton_karma_0d import FentonKarma0D, Stimulation
 
 
@@ -27,10 +26,12 @@ def prepare_model(model_class, dt, curr_dur, curr_value, t_prebeats):
         Configured and initialized model ready for simulation.
     """
 
-    stimulations = [Stimulation(t_start=0.0, duration=curr_dur, amplitude=curr_value),
-                    Stimulation(t_start=t_prebeats, duration=curr_dur, amplitude=curr_value),
-                    Stimulation(t_start=2*t_prebeats, duration=curr_dur, amplitude=curr_value),
-                    Stimulation(t_start=3*t_prebeats, duration=curr_dur, amplitude=curr_value)]
+    stimulations = [
+        Stimulation(
+            t_start=10.0 + i * t_prebeats, duration=curr_dur, amplitude=curr_value
+        )
+        for i in range(4)
+    ]
 
     model = model_class(dt=dt, stimulations=stimulations)
 
@@ -79,15 +80,30 @@ def test_model_attributes():
     """
     model = FentonKarma0D(dt=0.01, stimulations=[])
 
-    assert 'u' in model.variables, "Fenton-Karma should have variable 'u'"
-    assert 'v' in model.variables, "Fenton-Karma should have variable 'v'"
-    assert 'w' in model.variables, "Fenton-Karma should have variable 'w'"
+    assert "u" in model.variables, "Fenton-Karma should have variable 'u'"
+    assert "v" in model.variables, "Fenton-Karma should have variable 'v'"
+    assert "w" in model.variables, "Fenton-Karma should have variable 'w'"
 
-    expected_params = ['tau_r', 'tau_o', 'tau_d', 'tau_si', 'tau_v_m',
-                          'tau_v_p', 'tau_w_m', 'tau_w_p', 'k', 'u_c', 'uc_si']
-     
+    expected_params = [
+        "g_fi",
+        "tau_r",
+        "tau_si",
+        "tau_0",
+        "tau_v_p",
+        "tau_v1_m",
+        "tau_v2_m",
+        "tau_w_p",
+        "tau_w_m",
+        "u_c",
+        "u_v",
+        "uc_si",
+        "k",
+    ]
+
     for param in expected_params:
-        assert param in model.parameters, f"Fenton-Karma should have parameter '{param}'"
+        assert param in model.parameters, (
+            f"Fenton-Karma should have parameter '{param}'"
+        )
 
 
 def test_model_run():
@@ -96,15 +112,22 @@ def test_model_run():
     Runs the 0D Model with a predefined stimulation protocol and checks
     that the membrane potential 'u' stays within expected physiological ranges.
     """
-    t_prebeats = 1000.0 # interval between preconditioning stimuli (ms or model units).
-    t_calc = 1000.0     # time after the last preconditioning beat to continue recording (ms or model units).
-    t_max = 3*t_prebeats + t_calc
-    model = prepare_model(FentonKarma0D, dt=0.01, curr_dur=0.2, curr_value=1.0, t_prebeats=t_prebeats)
+    t_prebeats = 1000.0  # interval between preconditioning stimuli (ms or model units).
+    t_calc = 1000.0  # time after the last preconditioning beat to continue recording (ms or model units).
+    t_max = 3 * t_prebeats + t_calc
+    model = prepare_model(
+        FentonKarma0D, dt=0.01, curr_dur=0.05, curr_value=0.1, t_prebeats=t_prebeats
+    )
     model.run(t_max=t_max)
-    u = np.array(model.history['u'])
+    u = np.array(model.history["u"])
 
     assert np.max(u) == pytest.approx(1.0, abs=0.1)
     assert np.min(u) == pytest.approx(0.0, abs=0.01)
 
     apd = calculate_apd(u, model.dt, threshold=0.1)
     assert 200 <= apd <= 300, f"Fenton-Karma is out of expected range {apd}"
+
+    for variable in model.variables:
+        values = np.array(model.history[variable])
+        assert np.all(~np.isnan(values))
+        assert len(values) == int(t_max / model.dt)
