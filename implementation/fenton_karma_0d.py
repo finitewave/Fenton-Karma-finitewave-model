@@ -87,30 +87,15 @@ class FentonKarma0D:
             Current time step index.
         """
 
-        u_new, v_new, w_new = ops.ionic_step(
+        rhs, v_new, w_new = ops.ionic_step(
             self.dt,
-            self.variables["u"],
-            self.variables["v"],
-            self.variables["w"],
-            self.parameters["k"],
-            self.parameters["g_fi"],
-            self.parameters["tau_r"],
-            self.parameters["tau_si"],
-            self.parameters["tau_0"],
-            self.parameters["tau_v_p"],
-            self.parameters["tau_v1_m"],
-            self.parameters["tau_v2_m"],
-            self.parameters["tau_w_p"],
-            self.parameters["tau_w_m"],
-            self.parameters["u_c"],
-            self.parameters["u_v"],
-            self.parameters["uc_si"],
+            **self.variables,
+            **self.parameters
         )
-
+        
         stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
-        u_new += stim_current
 
-        self.variables["u"] = u_new
+        self.variables["u"] += (self.dt * rhs + stim_current)
         self.variables["v"] = v_new
         self.variables["w"] = w_new
 

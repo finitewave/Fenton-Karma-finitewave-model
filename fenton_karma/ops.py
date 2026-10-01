@@ -57,7 +57,7 @@ def get_parameters() -> dict[str, float]:
         "g_fi": 5.8,
         "tau_r": 130.0,
         "tau_si": 127.0,
-        "tau_0": 12.5,
+        "tau_o": 12.5,
         "tau_v_p": 10.0,
         "tau_v1_m": 18.2,
         "tau_v2_m": 18.2,
@@ -78,7 +78,7 @@ def ionic_step(
     g_fi,
     tau_r,
     tau_si,
-    tau_0,
+    tau_o,
     tau_v_p,
     tau_v1_m,
     tau_v2_m,
@@ -107,7 +107,7 @@ def ionic_step(
         Time constant for suprathreshold repolarization.
     tau_si : float
         Time constant for the slow inward current.
-    tau_0 : float
+    tau_o : float
         Time constant for subthreshold repolarization.
     tau_v_p : float
         Time constant for `v` above threshold.
@@ -135,7 +135,7 @@ def ionic_step(
     tau_v_m = calc_where(u < u_v, tau_v2_m, tau_v1_m)
 
     J_fi = calc_Jfi(u, v, u_c, tau_d)
-    J_so = calc_Jso(u, u_c, tau_0, tau_r)
+    J_so = calc_Jso(u, u_c, tau_o, tau_r)
     J_si = calc_Jsi(u, w, k, uc_si, tau_si)
 
     dv = calc_dv(v, u, u_c, tau_v_m, tau_v_p)
