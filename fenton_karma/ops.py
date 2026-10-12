@@ -131,10 +131,9 @@ def ionic_step(
     tuple[float, float, float]
         Updated values of (u, v, w) after one time step.
     """
-    tau_d = 1 / g_fi
     tau_v_m = calc_where(u < u_v, tau_v2_m, tau_v1_m)
 
-    J_fi = calc_Jfi(u, v, u_c, tau_d)
+    J_fi = calc_Jfi(u, v, u_c, g_fi)
     J_so = calc_Jso(u, u_c, tau_o, tau_r)
     J_si = calc_Jsi(u, w, k, uc_si, tau_si)
 
@@ -176,7 +175,7 @@ def calc_where(cond, x, y):
     return y
 
 
-def calc_Jfi(u, v, u_c, tau_d):
+def calc_Jfi(u, v, u_c, g_fi):
     """
     Computes the fast inward current (J_fi) for the Fenton-Karma model.
 
@@ -191,8 +190,8 @@ def calc_Jfi(u, v, u_c, tau_d):
         Fast recovery gate (sodium channel inactivation).
     u_c : float
         Activation threshold for the inward current.
-    tau_d : float
-        Time constant for depolarization.
+    g_fi : float
+        Conductance parameter of the fast inward current.
 
     Returns
     -------
@@ -200,7 +199,7 @@ def calc_Jfi(u, v, u_c, tau_d):
         Value of the fast inward current at this point.
     """
     H = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return -(v * H * (1 - u) * (u - u_c)) / tau_d
+    return -(v * H * (1 - u) * (u - u_c)) * g_fi
 
 
 def calc_Jso(u, u_c, tau_o, tau_r):
@@ -227,7 +226,7 @@ def calc_Jso(u, u_c, tau_o, tau_r):
     float
         Value of the outward repolarizing current.
     """
-    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
+    H1 = calc_where(u - u_c < 0, 1.0, 0.0)
     H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
 
     return u * H1 / tau_o + H2 / tau_r
@@ -286,9 +285,8 @@ def calc_dv(v, u, u_c, tau_v_m, tau_v_p):
     float
         Updated value of `v`.
     """
-    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
-    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return H1 * (1 - v) / tau_v_m - H2 * v / tau_v_p
+    H = calc_where(u >= u_c, 1.0, 0.0)
+    return (1.0 - H) * (1.0 - v) / tau_v_m - H * v / tau_v_p
 
 
 def calc_dw(w, u, u_c, tau_w_m, tau_w_p):
@@ -316,6 +314,5 @@ def calc_dw(w, u, u_c, tau_w_m, tau_w_p):
     float
         Updated value of `w`.
     """
-    H1 = calc_where(u_c - u >= 0, 1.0, 0.0)
-    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
-    return H1 * (1 - w) / tau_w_m - H2 * w / tau_w_p
+    H = calc_where(u >= u_c, 1.0, 0.0)
+    return (1.0 - H) * (1.0 - w) / tau_w_m - H * w / tau_w_p

@@ -88,7 +88,7 @@ def test_model_attributes():
         "g_fi",
         "tau_r",
         "tau_si",
-        "tau_0",
+        "tau_o",
         "tau_v_p",
         "tau_v1_m",
         "tau_v2_m",
