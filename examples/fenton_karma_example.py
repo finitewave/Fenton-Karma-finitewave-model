@@ -8,17 +8,19 @@ and plots the membrane potential over time.
 import matplotlib.pyplot as plt
 from implementation.fenton_karma_0d import FentonKarma0D, Stimulation
 
-stimulations = [Stimulation(t_start=100.0, duration=0.05, amplitude=0.1)]
+stimulations = [Stimulation(t_start=100.0, duration=0.05, amplitude=10)]
 t_max = 600.0
 
 model = FentonKarma0D(dt=0.01, stimulations=stimulations)
 model.run(t_max=t_max)
 
 # fig = plt.figure(figsize=(10, 5))
-plt.plot(model.times, model.history["u"], lw=2)
+plt.plot(model.times, model.history["u"], lw=2, label="Membrane Potential (u)")
+plt.plot(model.times, model.stim_history, lw=2, ls="--", label="Stimulation")
 plt.xlabel("Time (ms)")
 plt.ylabel("Membrane Potential (u)")
 plt.title("Fenton-Karma Model Simulation")
+plt.legend()
 plt.grid()
 plt.show()
 

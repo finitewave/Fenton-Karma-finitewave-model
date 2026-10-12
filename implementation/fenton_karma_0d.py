@@ -95,9 +95,10 @@ class FentonKarma0D:
         
         stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
 
-        self.variables["u"] += (self.dt * rhs + stim_current)
+        self.variables["u"] += self.dt * (rhs + stim_current)
         self.variables["v"] = v_new
         self.variables["w"] = w_new
+        self.stim_history.append(self.dt * stim_current)
 
     def run(self, t_max: float):
         """
