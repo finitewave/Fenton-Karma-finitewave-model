@@ -226,10 +226,8 @@ def calc_Jso(u, u_c, tau_o, tau_r):
     float
         Value of the outward repolarizing current.
     """
-    H1 = calc_where(u - u_c < 0, 1.0, 0.0)
-    H2 = calc_where(u - u_c >= 0, 1.0, 0.0)
-
-    return u * H1 / tau_o + H2 / tau_r
+    H = calc_where(u >= u_c, 1.0, 0.0)
+    return u * (1.0 - H) / tau_o + H / tau_r
 
 
 def calc_Jsi(u, w, k, uc_si, tau_si):
