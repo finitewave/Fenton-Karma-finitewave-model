@@ -51,6 +51,10 @@ class FentonKarma0D:
     stimulations : list[Stimulation]
         List of stimulation protocols to apply during the simulation.
 
+    optical_stimulations : list[Stimulation], optional
+        Light pulses; amplitudes are irradiances in mW/mm^2. Pulses add to
+        parameters["irradiance"], which defaults to zero.
+
     Attributes
     ----------
     variables : dict[str, float]
@@ -68,13 +72,15 @@ class FentonKarma0D:
         Run the simulation up to time t_max.
     """
 
-    def __init__(self, dt: float, stimulations: list[Stimulation]):
+    def __init__(self, dt: float, stimulations: list[Stimulation], optical_stimulations=None):
         self.dt = dt
         self.stimulations = stimulations
+        self.optical_stimulations = optical_stimulations or []
         self.variables = ops.get_variables()
         self.parameters = ops.get_parameters()
         self.history = {s: [] for s in self.variables}
         self.stim_history = []
+        self.light_history = []
         self.times = []
 
     def step(self, i: int):
@@ -87,17 +93,22 @@ class FentonKarma0D:
             Current time step index.
         """
 
-        rhs, v_new, w_new = ops.ionic_step(
+        parameters = dict(self.parameters)
+        parameters["irradiance"] += sum(
+            pulse.stim(i * self.dt) for pulse in self.optical_stimulations
+        )
+        result = ops.ionic_step(
             self.dt,
             **self.variables,
-            **self.parameters
+            **parameters
         )
         
         stim_current = sum(stim.stim(i * self.dt) for stim in self.stimulations)
 
-        self.variables["u"] += self.dt * (rhs + stim_current)
-        self.variables["v"] = v_new
-        self.variables["w"] = w_new
+        self.variables["u"] += self.dt * (result[0] + stim_current)
+        for name, value in zip(list(self.variables)[1:], result[1:]):
+            self.variables[name] = value
+        self.light_history.append(parameters["irradiance"])
         self.stim_history.append(self.dt * stim_current)
 
     def run(self, t_max: float):

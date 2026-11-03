@@ -1,65 +1,99 @@
-## Fenton-Karma Finitewave model
+# Fenton–Karma with ChR2(H134R)
 
-The Fenton-Karma model is a simplified mathematical representation of cardiac action potentials, designed to reproduce the essential excitation–recovery dynamics of cardiac cells. Unlike detailed ionic models, it does not explicitly describe individual ion currents but instead uses a reduced set of variables and parameters to capture the key features of cardiac electrophysiology. This abstraction makes the model computationally efficient while retaining the ability to simulate wave propagation, spiral wave dynamics, and arrhythmia mechanisms in cardiac tissue.
+The ionic core uses the porcine ventricular three-variable minimal model in
+[Kaboudian et al. (2019)](https://doi.org/10.1126/sciadv.aav6019), pp. 3–4,
+with the four-state ChR2 model from
+[Williams et al. (2013)](https://doi.org/10.1371/journal.pcbi.1003220),
+Eqs. 1–14, Table 1 and Fig. 5F. This is no longer the original 1998 MLR-I
+parameter set. The package works as a Finitewave model plugin or standalone.
 
-This model implementation can be used separately from the Finitewave, allowing for standalone simulations and testing of the model dynamics without the need for the entire framework.
+## Optical stimulation
 
-### Reference
-Fenton, F. H., & Karma, A. (1998). Vortex dynamics in three-dimensional 
-continuous myocardium with fiber rotation: Filament instability and fibrillation.
-Chaos: An Interdisciplinary Journal of Nonlinear Science, 8(1), 20-47.
+```python
+from implementation.fenton_karma_0d import FentonKarma0D, Stimulation
 
-DOI: https://doi.org/10.1063/1.166311
-
-### How to use (quickstart)
-```bash
-python -m examples.fenton_karma_example
+model = FentonKarma0D(
+    dt=0.01,                         # ms
+    stimulations=[],                # electrical current pulses
+    optical_stimulations=[
+        Stimulation(t_start=10.0, duration=20.0, amplitude=1.0),
+    ],                              # optical amplitude: mW/mm²
+)
+model.parameters['temperature'] = 37.0
+model.run(t_max=600.0)
+voltage = model.history['u']
+light = model.light_history
 ```
 
-![Alt text](fenton_karma_ap.png)
+Optical pulses add to `parameters['irradiance']`, which defaults to zero.
+For Finitewave, `FentonKarma` automatically discovers the new variables and
+parameters. Set `model.irradiance` to a scalar or spatial array, updating it
+between time steps to apply a light protocol. It is an irradiance parameter,
+not an injected electrical current. Negative values are treated as darkness.
 
-### How to test
+## State and units
+
+- `u`, `v`, `w`: original dimensionless voltage and recovery gates.
+- `c1`, `o1`, `o2`, `c2`: ChR2 closed/open probabilities; initially `(1,0,0,0)`.
+- `p_chr2`: light-activation state, initially zero; distinct from the FK switch `p`.
+
+Time is in ms. ChR2 rates require voltage in **mV**, not normalized `u`:
+
+```text
+V = V_rest + V_scale*u
+ du/dt = FK_rhs - I_chr2/(C_m*V_scale)
+```
+
+The defaults `V_rest=-85 mV`, `V_scale=100 mV`, and `C_m=1 µF/cm²` are explicit
+coupling assumptions. Neither paper validates this combined model or supplies
+a voltage calibration for this coupling. Adjust them for the intended tissue;
+`V_scale` and `C_m` must be positive. `I_chr2` is in µA/cm².
+
+`g_chr2=0.4 mS/cm²` and `gamma_chr2=0.1` follow Table 1. Set `g_chr2=0` to disable
+its voltage contribution. With dark initial states and zero irradiance, the
+original FK voltage and recovery dynamics are preserved.
+
+The photon and activation constants are exposed through `get_parameters()`:
+
+| Parameter | Default | Units |
+|---|---:|---|
+| `sigma_ret` | `12e-20` | m² |
+| `lambda_nm` | `470` | nm |
+| `w_loss` | `0.77` | dimensionless, denominator convention |
+| `hc` | `1.986446e-25` | J·m |
+| `eps1` | `0.8535` | dimensionless |
+| `eps2` | `0.14` | dimensionless |
+| `tau_chr2` | `1.3` | ms |
+
+Separate helpers evaluate the Table 1 baseline rates. `ionic_step` applies
+Fig. 5F temperature factors and converts irradiance to `theta=100*I`.
+`calc_flux` converts `lambda_nm` to metres explicitly; its output is ms⁻¹.
+`calc_G_times_V` returns the product `G(V)*V`, not `G(V)` itself, and
+`calc_J_chr2` consumes this product without multiplying by voltage again.
+
+`temperature=22°C` reproduces the baseline rates. Setting it to 37°C applies
+Fig. 5F's optimized Q10 factors to the ChR2 rates only; the FK kinetics are not
+temperature-scaled. The e12/e21 Q10 factors apply to their dark components.
+The light activation function uses Table 1's `theta=100*irradiance` and
+`tau_chr2=1.3 ms`; photon flux uses SI constants and converts to ms⁻¹.
+
+The paper fixes `E_chr2=0 mV`. We evaluate `G(V)*V` after algebraic cancellation
+to remain finite at `V=0`. The empirical fit has a nonzero limiting current
+there and crosses zero near +13.65 mV; this implementation preserves that fit.
+
+All states advance by forward Euler, consistent with the FK implementation.
+No probability clipping or renormalization is applied. Use a sufficiently small
+time step (the tests use 0.01 ms) and check convergence for stronger illumination
+or altered parameters. `ionic_step` now returns eight values:
+`(rhs, v_new, w_new, c1_new, o1_new, o2_new, c2_new, p_chr2_new)`.
+
+## Validation
+
 ```bash
 python -m pytest -q
 ```
 
-### Repository structure
-```text
-.
-├── fenton_karma/                    # equations package (ops.py)
-│   ├── __init__.py
-│   └── ops.py                       # fill with the model equations (pure functions)
-├── implementation/                  # 0D Fenton-Karma implementation
-│   ├── __init__.py
-│   └── fenton_karma_0d.py
-├── example/
-│   └── fenton_karma_example.py      # minimal script to run a short trace
-├── tests/
-│   └── fenton_karma_test.py         # smoke test; extend with reproducibility checks
-├── .gitignore
-├── LICENSE                          # MIT
-├── pyproject.toml                   # placeholders to replace
-└── README.md                        # this file
-```
-
-### Variables
-Model state variables: description, units and ranges (optional)
-- `u` — Transmembrane potential (mV)
-- `v` - Initial recovery variable (dimensionless)
-- `w` - Initial activation variable (dimensionless)
-
-### Parameters
-Parameters and their default values
-- `tau_r   = 130` - Recovery time constant (ms)
-- `tau_o   = 12.5` - Activation time constant (ms)
-- `tau_d   = 0.172` - Deactivation time constant (ms)
-- `tau_si  = 127` - Slow inactivation time constant (ms)
-- `tau_v_m = 18.2` - Membrane time constant (ms)
-- `tau_v_p = 10` - Potential time constant (ms)
-- `tau_w_m = 80` - Activation time constant for `w` (ms)
-- `tau_w_p = 1020` - Activation time constant for `w` (ms)
-- `k       = 10` - Scaling factor for recovery dynamics
-- `u_c     = 0.13` - Threshold for recovery variable (dimensionless)
-- `uc_si   = 0.85` - Slow inactivation threshold (dimensionless)
-
-
+Tests cover published rates, temperature scaling, current units, the zero-voltage
+limit, dark FK equivalence, probability conservation, optical excitation and
+recovery at 22°C/37°C, and time-step convergence. These are equation and numerical
+checks, not experimental validation of the combined model.
